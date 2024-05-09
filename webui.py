@@ -19,9 +19,18 @@ def binarize(image):
     return image
 
 def crop_to_bbox(image):
+    padding = 20
     bbox = image.getbbox()
     if bbox:
-        image = image.crop(bbox)
+        padded_bbox = (bbox[0] - padding, bbox[1] - padding, bbox[2] + padding, bbox[3] + padding)
+        width, height = image.size
+        padded_bbox = (
+            max(padded_bbox[0], 0),
+            max(padded_bbox[1], 0),
+            min(padded_bbox[2], width),
+            min(padded_bbox[3], height)
+        )
+        image = image.crop(padded_bbox)
     return image
 
 
