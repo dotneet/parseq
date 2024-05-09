@@ -27,3 +27,4 @@ six==1.16.0
 tensorboardx==2.6.2.2
 tifffile==2024.2.12
 zipp==3.17.0
+fire==0.6.0
