@@ -166,6 +166,10 @@ class BaseSystem(pl.LightningModule, ABC):
     def validation_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
         result = self._eval_step(batch, True)
         self.outputs.append(result)
+
+        output = result['output']
+        self.log("vloss", output.loss, rank_zero_only=True, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
+
         return result
 
     def on_validation_epoch_end(self) -> None:

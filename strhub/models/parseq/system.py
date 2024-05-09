@@ -196,5 +196,5 @@ class PARSeq(CrossEntropySystem):
                 n = (tgt_out != self.pad_id).sum().item()
         loss /= loss_numel
 
-        self.log('loss', loss)
+        self.log('loss', loss, on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         return loss
