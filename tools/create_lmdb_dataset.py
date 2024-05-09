@@ -39,6 +39,8 @@ def createDataset(inputPath, gtFile, outputPath, checkValid=True):
 
     with open(gtFile, 'r', encoding='utf-8') as f:
         data = f.readlines()
+        # remove empty lines
+        data = [line for line in data if line.strip()]
 
     nSamples = len(data)
     for i, line in enumerate(data):
