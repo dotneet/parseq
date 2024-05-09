@@ -7,6 +7,7 @@ from PIL import ImageOps, Image
 from strhub.data.module import SceneTextDataModule
 from strhub.models.utils import load_from_checkpoint, parse_model_args
 
+server_name=os.environ.get("SERVER_NAME") or "localhost"
 ckpt = os.environ.get("MODEL") or "./parseq.ckpt"
 model = load_from_checkpoint(ckpt).eval().to("cpu")
 img_transform = SceneTextDataModule.get_transform(model.hparams.img_size)
@@ -18,7 +19,7 @@ def binarize(image):
     image = ImageOps.autocontrast(image)
     return image
 
-def crop_to_bbox(image):
+def crop_to_bbox(image: Image.Image):
     padding = 20
     bbox = image.getbbox()
     if bbox:
@@ -44,19 +45,31 @@ def predict(image_input):
     logits = model(img_tensor)
     pred = logits.softmax(-1)
     label, confidence = model.tokenizer.decode(pred)
-    return label, image
 
-with gr.Blocks() as demo:
+    # tensor to pil
+    image_transformed = img_tensor.squeeze(0).permute(1, 2, 0)  # CHW to HWC
+    image_transformed = image_transformed.mul(255).byte().numpy()
+    image_transformed = Image.fromarray(image_transformed)
+
+    return label, image_transformed
+
+css = """
+.preview-image img {
+    object-fit: contain;
+    max-height: 200px;
+}
+"""
+with gr.Blocks(css=css) as demo:
     with gr.Column():
         im = gr.ImageEditor(
             type="pil",
             image_mode="RGBA",
             canvas_size=(1200, 480),
             scale=1,
-            brush=Brush(default_color="red", default_size=3),
+            brush=Brush(default_color="blue", default_size=3),
         )
         text = gr.Textbox()
-        im_preview = gr.Image()
+        im_preview = gr.Image(elem_classes="preview-image")
         im.change(predict, outputs=[
             text,
             im_preview,
@@ -68,4 +81,5 @@ with gr.Blocks() as demo:
 def greet(name):
     return "Hello " + name + "!"
 
-demo.launch() 
+demo.launch(server_name=server_name) 
+
