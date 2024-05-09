@@ -25,7 +25,7 @@ data:
   charset_train: ${model.charset_train}
   charset_test: ${model.charset_test}
   max_label_length: ${model.max_label_length}
-  remove_whitespace: true
+  remove_whitespace: false
   normalize_unicode: true
   augment: true
   num_workers: 2
