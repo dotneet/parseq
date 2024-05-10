@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - override /model: parseq
+
+model:
+  img_size: [256, 256] # [ height, width ]
+  patch_size: [16, 16] # [ height, width ]
+  dec_depth: 4
