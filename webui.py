@@ -10,6 +10,12 @@ from strhub.models.utils import load_from_checkpoint, parse_model_args
 server_name=os.environ.get("SERVER_NAME") or "localhost"
 ckpt = os.environ.get("MODEL") or "./parseq.ckpt"
 model = load_from_checkpoint(ckpt).eval().to("cpu")
+
+# to fix the issue: https://github.com/baudm/parseq/issues/139
+# this code should be removed after that bug is solved.
+if model.hparams.dec_depth > 1:
+    model.model.refine_iters = 0
+
 img_transform = SceneTextDataModule.get_transform(model.hparams.img_size)
 
 # 画像の二値化
