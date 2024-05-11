@@ -2,7 +2,8 @@ name: parseq
 _target_: strhub.models.parseq.system.PARSeq
 
 # Data
-patch_size: [ 4, 8 ]  # [ height, width ]
+patch_size: [4, 8] # [ height, width ]
+fixed_height: null
 
 # Architecture
 embed_dim: 384

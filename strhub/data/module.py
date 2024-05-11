@@ -46,6 +46,7 @@ class SceneTextDataModule(pl.LightningDataModule):
         min_image_dim: int = 0,
         rotation: int = 0,
         collate_fn: Optional[Callable] = None,
+        fixed_height: Optional[int] = None,
     ):
         super().__init__()
         self.root_dir = root_dir
@@ -62,11 +63,12 @@ class SceneTextDataModule(pl.LightningDataModule):
         self.min_image_dim = min_image_dim
         self.rotation = rotation
         self.collate_fn = collate_fn
+        self.fixed_height = fixed_height
         self._train_dataset = None
         self._val_dataset = None
 
     @staticmethod
-    def get_transform(img_size: tuple[int], augment: bool = False, rotation: int = 0):
+    def get_transform(img_size: tuple[int,...], augment: bool = False, rotation: int = 0, fixed_height: Optional[int] = None):
         transforms = []
         if augment:
             from .augment import rand_augment_transform
@@ -74,17 +76,22 @@ class SceneTextDataModule(pl.LightningDataModule):
             transforms.append(rand_augment_transform())
         if rotation:
             transforms.append(lambda img: img.rotate(rotation, expand=True))
+        
+        if fixed_height is not None:
+            from .augment import ImageHeightAdjuster
+            transforms.append(ImageHeightAdjuster(img_size, fixed_height, fill=0))
+
         transforms.extend([
             T.Resize(img_size, T.InterpolationMode.BICUBIC),
             T.ToTensor(),
-            T.Normalize(0.5, 0.5),
+            # T.Normalize(0.5, 0.5),
         ])
         return T.Compose(transforms)
 
     @property
     def train_dataset(self):
         if self._train_dataset is None:
-            transform = self.get_transform(self.img_size, self.augment)
+            transform = self.get_transform(self.img_size, self.augment, fixed_height=self.fixed_height)
             root = PurePath(self.root_dir, 'train', self.train_dir)
             self._train_dataset = build_tree_dataset(
                 root,
@@ -100,7 +107,7 @@ class SceneTextDataModule(pl.LightningDataModule):
     @property
     def val_dataset(self):
         if self._val_dataset is None:
-            transform = self.get_transform(self.img_size)
+            transform = self.get_transform(self.img_size, fixed_height=self.fixed_height)
             root = PurePath(self.root_dir, 'val')
             self._val_dataset = build_tree_dataset(
                 root,
@@ -135,7 +142,7 @@ class SceneTextDataModule(pl.LightningDataModule):
         )
 
     def test_dataloaders(self, subset):
-        transform = self.get_transform(self.img_size, rotation=self.rotation)
+        transform = self.get_transform(self.img_size, rotation=self.rotation, fixed_height=self.fixed_height)
         root = PurePath(self.root_dir, 'test')
         datasets = {
             s: LmdbDataset(

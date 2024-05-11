@@ -16,13 +16,16 @@ model = load_from_checkpoint(ckpt).eval().to("cpu")
 if model.hparams.dec_depth > 1:
     model.model.refine_iters = 0
 
-img_transform = SceneTextDataModule.get_transform(model.hparams.img_size)
+img_transform = SceneTextDataModule.get_transform(
+    model.hparams.img_size,
+    fixed_height=model.hparams.fixed_height,
+    )
 
 # 画像の二値化
 def binarize(image):
     image = ImageOps.grayscale(image)
     image = ImageOps.invert(image)
-    image = ImageOps.autocontrast(image)
+    image = ImageOps.autocontrast(image, preserve_tone=True)
     return image
 
 def crop_to_bbox(image: Image.Image):
@@ -60,7 +63,12 @@ def predict(image_input):
     return label, image_transformed
 
 css = """
+.preview-image .image-container {
+    place-items: center;
+    display: grid;
+}
 .preview-image img {
+    width: auto;
     object-fit: contain;
     max-height: 200px;
 }

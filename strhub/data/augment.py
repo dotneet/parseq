@@ -17,6 +17,8 @@ from functools import partial
 
 import imgaug.augmenters as iaa
 import numpy as np
+import torch.nn as nn
+from torchvision import transforms as T
 from PIL import Image, ImageFilter
 
 from timm.data import auto_augment
@@ -110,3 +112,25 @@ def rand_augment_transform(magnitude=5, num_layers=3):
     # Supply weights to disable replacement in random selection (i.e. avoid applying the same op twice)
     choice_weights = [1.0 / len(ra_ops) for _ in range(len(ra_ops))]
     return auto_augment.RandAugment(ra_ops, num_layers, choice_weights)
+
+class ImageHeightAdjuster(nn.Module):
+
+    def __init__(self, img_size, height, fill=0):
+        super().__init__()
+        self.img_size = img_size
+        self.height = height
+        self.fill = fill
+
+    def forward(self, image):
+        final_height, final_width = self.img_size
+        width, height = image.size
+        aspect_ratio = width / height
+        new_width = int(self.height * aspect_ratio)
+        pad_width = max((final_width - new_width) // 2, 0)
+        pad_height = max((final_height - self.height) // 2, 0)
+
+        image = T.Resize((self.height, new_width), T.InterpolationMode.BICUBIC)(image)
+        return T.Pad((pad_width, pad_height, pad_width, pad_height), fill=self.fill)(image)
+    
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(img_size={self.img_size}, height={self.height}, fill={self.fill})'
