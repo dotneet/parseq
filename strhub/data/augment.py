@@ -83,7 +83,7 @@ _RAND_TRANSFORMS.extend([
     'GaussianBlur',
     # 'MotionBlur',
     # 'GaussianNoise',
-    'PoissonNoise',
+    # 'PoissonNoise',
 ])
 auto_augment.LEVEL_TO_ARG.update({
     'GaussianBlur': partial(_level_to_arg, max=4),
@@ -102,7 +102,7 @@ auto_augment.NAME_TO_OP.update({
 def rand_augment_transform(magnitude=5, num_layers=3):
     # These are tuned for magnitude=5, which means that effective magnitudes are half of these values.
     hparams = {
-        'rotate_deg': 30,
+        'rotate_deg': 20,
         'shear_x_pct': 0.9,
         'shear_y_pct': 0.2,
         'translate_x_pct': 0.10,
