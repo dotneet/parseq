@@ -64,6 +64,9 @@ packages = { find = { include = ["strhub*"] } }
 
 [tool.uv]
 default-groups = ["dev"]
+# Supply-chain cooldown: ignore releases published in the last 7 days.
+# Use `exclude-newer-package` to opt out a package (e.g. for an urgent security fix).
+exclude-newer = "7 days"
 
 [tool.pyink]
 line-length = 120
