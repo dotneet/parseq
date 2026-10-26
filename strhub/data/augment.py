@@ -15,7 +15,6 @@
 
 from functools import partial
 
-import imgaug.augmenters as iaa
 import numpy as np
 from PIL import Image, ImageFilter
 
@@ -49,25 +48,59 @@ def gaussian_blur(img, radius, **__):
     return img.filter(op)
 
 
+def _motion_blur_kernel(k: int, angle: float, direction: float) -> np.ndarray:
+    """Line kernel of size k x k, rotated by `angle` degrees.
+
+    `direction` in [-1, 1] shifts the weight towards one end of the line (0 = uniform).
+    Mirrors the kernel used by imgaug's MotionBlur.
+    """
+    weights = np.linspace(1.0 - direction, 1.0 + direction, k).clip(min=0)
+    weights /= weights.sum()
+    line = np.zeros((k, k), dtype=np.float32)
+    line[k // 2, :] = weights
+    kernel = Image.fromarray(line, mode='F').rotate(angle, resample=Image.Resampling.BILINEAR)
+    kernel = np.asarray(kernel, dtype=np.float32)
+    total = kernel.sum()
+    return kernel / total if total > 0 else line
+
+
+def _convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    k = kernel.shape[0]
+    pad = k // 2
+    x = img.astype(np.float32)
+    if x.ndim == 2:
+        x = x[..., None]
+    padded = np.pad(x, ((pad, pad), (pad, pad), (0, 0)), mode='reflect')
+    windows = np.lib.stride_tricks.sliding_window_view(padded, (k, k), axis=(0, 1))
+    out = np.einsum('hwcij,ij->hwc', windows, kernel)
+    return out.reshape(img.shape)
+
+
+def _add_noise(img: Image.Image, noise: np.ndarray) -> Image.Image:
+    arr = np.asarray(img)
+    if arr.ndim == 3:
+        noise = noise[..., None]  # Same noise for all channels (per_channel=False)
+    return Image.fromarray(np.clip(arr + noise, 0, 255).astype(np.uint8))
+
+
 def motion_blur(img, k, **__):
     k = _get_param(k, img, 0.08, 3) | 1  # bin to odd values
-    key = 'motion_blur_' + str(k)
-    op = _get_op(key, lambda: iaa.MotionBlur(k))
-    return Image.fromarray(op(image=np.asarray(img)))
+    kernel = _motion_blur_kernel(k, np.random.uniform(0, 360), np.random.uniform(-1.0, 1.0))
+    arr = _convolve(np.asarray(img), kernel)
+    return Image.fromarray(np.clip(np.round(arr), 0, 255).astype(np.uint8))
 
 
 def gaussian_noise(img, scale, **_):
     scale = _get_param(scale, img, 0.25) | 1  # bin to odd values
-    key = 'gaussian_noise_' + str(scale)
-    op = _get_op(key, lambda: iaa.AdditiveGaussianNoise(scale=scale))
-    return Image.fromarray(op(image=np.asarray(img)))
+    noise = np.random.normal(0.0, scale, size=(img.height, img.width))
+    return _add_noise(img, np.round(noise))
 
 
 def poisson_noise(img, lam, **_):
     lam = _get_param(lam, img, 0.2) | 1  # bin to odd values
-    key = 'poisson_noise_' + str(lam)
-    op = _get_op(key, lambda: iaa.AdditivePoissonNoise(lam))
-    return Image.fromarray(op(image=np.asarray(img)))
+    noise = np.random.poisson(lam, size=(img.height, img.width))
+    sign = np.random.choice([-1, 1], size=noise.shape)
+    return _add_noise(img, sign * noise)
 
 
 def _level_to_arg(level, _hparams, max):

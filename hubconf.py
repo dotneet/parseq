@@ -1,6 +1,6 @@
 from strhub.models.utils import create_model
 
-dependencies = ['torch', 'pytorch_lightning', 'timm']
+dependencies = ['torch', 'lightning', 'timm', 'huggingface_hub']
 
 
 def parseq_tiny(pretrained: bool = False, decode_ar: bool = True, refine_iters: int = 1, **kwargs):

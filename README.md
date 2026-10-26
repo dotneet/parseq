@@ -74,20 +74,32 @@ released under the BSD and MIT licenses, respectively (see corresponding `LICENS
 An [interactive Gradio demo](https://huggingface.co/spaces/baudm/PARSeq-OCR) hosted at Hugging Face is available. The pretrained weights released here are used for the demo.
 
 ### Installation
-Requires Python >= 3.9 and PyTorch >= 2.0. The default requirements files will install the latest versions of the dependencies (as of February 22, 2024).
+Requires Python >= 3.10 and PyTorch >= 2.14. Dependencies are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` + `uv.lock`).
 ```bash
-# Use specific platform build. Other PyTorch 2.0 options: cu118, cu121, rocm5.7
-platform=cpu
-# Generate requirements files for specified PyTorch platform
-make torch-${platform}
-# Install the project and core + train + test dependencies. Subsets: [dev,train,test,bench,tune]
-pip install -r requirements/core.${platform}.txt -e .[train,test]
- ```
-#### Updating dependency version pins
+# Install the project and core + train + test dependencies. Extras: train, test, bench, tune, webui
+uv sync --extra train --extra test
+# or install everything
+uv sync --all-extras
+```
+The scripts can then be run with `uv run`, e.g. `uv run train.py ...` (or activate `.venv` and use `./train.py ...` as in the examples below).
+
+By default, the PyTorch wheels from PyPI are used (CUDA build on Linux, CPU/MPS build on macOS).
+To use a specific PyTorch build (e.g. CPU-only or another CUDA version on Linux), add an index to `pyproject.toml`:
+```toml
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"  # or e.g. .../whl/cu128
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+```
+#### Updating dependencies
 ```bash
-pip install pip-tools
-make clean-reqs reqs  # Regenerate all the requirements files
- ```
+uv lock --upgrade  # Upgrade all the locked versions
+uv sync --all-extras
+```
 ### Datasets
 Download the [datasets](Datasets.md) from the following links:
 1. [LMDB archives](https://drive.google.com/drive/folders/1NYuoi7dfJVgo-zUJogh8UQZgIMpLviOE) for MJSynth, SynthText, IIIT5k, SVT, SVTP, IC13, IC15, CUTE80, ArT, RCTW17, ReCTS, LSVT, MLT19, COCO-Text, and Uber-Text.
@@ -117,6 +129,22 @@ label, confidence = parseq.tokenizer.decode(pred)
 print('Decoded label = {}'.format(label[0]))
 ```
 
+### Pretrained Models via Hugging Face Hub
+The official weights are downloaded from the [Hugging Face Hub](https://huggingface.co/baudm) (e.g. [baudm/parseq-tiny](https://huggingface.co/baudm/parseq-tiny)),
+falling back to the GitHub release if the Hub is unavailable.
+```python
+from strhub.models.utils import create_model
+
+parseq = create_model('parseq-tiny', pretrained=True).eval()  # Other options: parseq, parseq-patch16-224, abinet, trba, vitstr, crnn
+```
+The same weights can be used from the command line with `pretrained=<model_id>`:
+```bash
+./read.py pretrained=parseq-tiny --images demo_images/* --device cpu  # cuda, mps, or cpu
+./test.py pretrained=parseq-tiny
+```
+Note that the official weights were trained with `max_label_length=25` and the 94-character set (`configs/charset/94_full.yaml`).
+These are used automatically when loading them for inference, regardless of `configs/main.yaml`.
+
 ## Frequently Asked Questions
 - How do I train on a new language? See Issues [#5](https://github.com/baudm/parseq/issues/5) and [#9](https://github.com/baudm/parseq/issues/9).
 - Can you export to TorchScript or ONNX? Yes, see Issue [#12](https://github.com/baudm/parseq/issues/12#issuecomment-1267842315).
@@ -133,6 +161,11 @@ The training script can train any supported model. You can override any configur
 ```bash
 ./train.py +experiment=parseq-tiny pretrained=parseq-tiny  # Not all experiments have pretrained weights
 ```
+For PARSeq, the pretrained weights can also be used with a different charset and/or `max_label_length`
+(e.g. the defaults in `configs/main.yaml`: 95 characters incl. space, max. 60 characters).
+The weights of the characters shared by both charsets and the positional queries are carried over; new ones are trained from scratch.
+
+On machines without an NVIDIA GPU, override the trainer settings, e.g. `trainer.accelerator=mps trainer.devices=1` (Apple Silicon) or `trainer.accelerator=cpu trainer.devices=1`.
 
 ### Train a model variant/preconfigured experiment
 The base model configurations are in `configs/model/`, while variations are stored in `configs/experiment/`.
@@ -160,11 +193,11 @@ The base model configurations are in `configs/model/`, while variations are stor
 ./train.py data.root_dir=data data.num_workers=2 data.augment=true
 ```
 
-### Change `pytorch_lightning.Trainer` parameters
+### Change `lightning.pytorch.Trainer` parameters
 ```bash
 ./train.py trainer.max_epochs=20 trainer.accelerator=gpu trainer.devices=2
 ```
-Note that you can pass any [Trainer parameter](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html),
+Note that you can pass any [Trainer parameter](https://lightning.ai/docs/pytorch/stable/common/trainer.html),
 you just need to prefix it with `+` if it is not originally specified in `configs/main.yaml`.
 
 ### Resume training from checkpoint (experimental)
@@ -258,6 +291,7 @@ demo_images/uber-27491.jpg: 3rdAve
 ## Tuning
 
 We use [Ray Tune](https://www.ray.io/ray-tune) for automated parameter tuning of the learning rate. See `./tune.py --help`. Extend `tune.py` to support tuning of other hyperparameters.
+When using uv, run it with `uv run --extra tune tune.py ...` so that the Ray workers (also started via `uv run`) get the same environment.
 ```bash
 ./tune.py tune.num_samples=20  # find optimum LR for PARSeq's default config using 20 trials
 ./tune.py +experiment=tune_abinet-lm  # find the optimum learning rate for ABINet's language model

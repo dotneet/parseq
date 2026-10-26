@@ -19,9 +19,7 @@ from typing import Callable, Optional, Sequence
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 
-import pytorch_lightning as pl
-
-from .dataset import LmdbDataset, build_tree_dataset
+import lightning.pytorch as pl
 
 
 class SceneTextDataModule(pl.LightningDataModule):
@@ -84,6 +82,8 @@ class SceneTextDataModule(pl.LightningDataModule):
     @property
     def train_dataset(self):
         if self._train_dataset is None:
+            from .dataset import build_tree_dataset
+
             transform = self.get_transform(self.img_size, self.augment)
             root = PurePath(self.root_dir, 'train', self.train_dir)
             self._train_dataset = build_tree_dataset(
@@ -100,6 +100,8 @@ class SceneTextDataModule(pl.LightningDataModule):
     @property
     def val_dataset(self):
         if self._val_dataset is None:
+            from .dataset import build_tree_dataset
+
             transform = self.get_transform(self.img_size)
             root = PurePath(self.root_dir, 'val')
             self._val_dataset = build_tree_dataset(
@@ -135,6 +137,8 @@ class SceneTextDataModule(pl.LightningDataModule):
         )
 
     def test_dataloaders(self, subset):
+        from .dataset import LmdbDataset
+
         transform = self.get_transform(self.img_size, rotation=self.rotation)
         root = PurePath(self.root_dir, 'test')
         datasets = {

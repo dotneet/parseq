@@ -17,21 +17,20 @@
 import logging
 import math
 import os
-import shutil
 from pathlib import Path
 
 import hydra
 import numpy as np
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, open_dict
-from ray import air, train, tune
+from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.tune.schedulers import MedianStoppingRule
 from ray.tune.search.ax import AxSearch
 
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.loggers import TensorBoardLogger
+from lightning.pytorch import Trainer
+from lightning.pytorch.loggers import TensorBoardLogger
 
 from strhub.data.module import SceneTextDataModule
 from strhub.models.base import BaseSystem
@@ -91,17 +90,6 @@ class MetricTracker(tune.Stopper):
         return False
 
 
-class TuneReportCheckpointPruneCallback(TuneReportCheckpointCallback):
-
-    def _handle(self, trainer: Trainer, pl_module: LightningModule):
-        super()._handle(trainer, pl_module)
-        # Prune older checkpoints
-        trial_dir = train.get_context().get_trial_dir()
-        for old in sorted(Path(trial_dir).glob('checkpoint_epoch=*-step=*'), key=os.path.getmtime)[:-1]:
-            log.info(f'Deleting old checkpoint: {old}')
-            shutil.rmtree(old)
-
-
 def trainable(hparams, config):
     with open_dict(config):
         config.model.lr = hparams['lr']
@@ -110,12 +98,12 @@ def trainable(hparams, config):
     model: BaseSystem = hydra.utils.instantiate(config.model)
     datamodule: SceneTextDataModule = hydra.utils.instantiate(config.data)
 
-    tune_callback = TuneReportCheckpointPruneCallback({
+    tune_callback = TuneReportCheckpointCallback({
         'loss': 'val_loss',
         'NED': 'val_NED',
         'accuracy': 'val_accuracy',
     })
-    if checkpoint := train.get_checkpoint():
+    if checkpoint := tune.get_checkpoint():
         with checkpoint.as_directory() as checkpoint_dir:
             ckpt_path = os.path.join(checkpoint_dir, 'checkpoint')
     else:
@@ -124,7 +112,7 @@ def trainable(hparams, config):
         config.trainer,
         enable_progress_bar=False,
         enable_checkpointing=False,
-        logger=TensorBoardLogger(save_dir=train.get_context().get_trial_dir(), name='', version='.'),
+        logger=TensorBoardLogger(save_dir=tune.get_context().get_trial_dir(), name='', version='.'),
         callbacks=[tune_callback],
     )
     trainer.fit(model, datamodule=datamodule, ckpt_path=ckpt_path)
@@ -138,8 +126,8 @@ def main(config: DictConfig):
     # Modify config
     with open_dict(config):
         # Use mixed-precision training
-        if config.trainer.get('gpus', 0):
-            config.trainer.precision = 16
+        if config.trainer.get('accelerator') == 'gpu':
+            config.trainer.precision = '16-mixed'
         # Resolve absolute path to data.root_dir
         config.data.root_dir = hydra.utils.to_absolute_path(config.data.root_dir)
 
@@ -183,11 +171,13 @@ def main(config: DictConfig):
                 scheduler=scheduler,
                 num_samples=config.tune.num_samples,
             ),
-            run_config=air.RunConfig(
+            run_config=tune.RunConfig(
                 name=out_dir.name,
                 stop=MetricTracker('NED', max_t),
                 progress_reporter=reporter,
-                local_dir=str(out_dir.parent.absolute()),
+                storage_path=str(out_dir.parent.absolute()),
+                # Only keep the latest checkpoint of each trial
+                checkpoint_config=tune.CheckpointConfig(num_to_keep=1),
             ),
         )
     else:

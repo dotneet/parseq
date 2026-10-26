@@ -23,8 +23,8 @@ from torch import Tensor, nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
-from pytorch_lightning.utilities.types import STEP_OUTPUT
-from timm.optim.optim_factory import param_groups_weight_decay
+from lightning.pytorch.utilities.types import STEP_OUTPUT
+from timm.optim import param_groups_weight_decay
 
 from strhub.models.base import CrossEntropySystem
 from strhub.models.utils import init_weights

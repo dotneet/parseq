@@ -17,7 +17,7 @@ from typing import Optional, Sequence
 
 from torch import Tensor
 
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+from lightning.pytorch.utilities.types import STEP_OUTPUT
 
 from strhub.models.base import CTCSystem
 from strhub.models.utils import init_weights

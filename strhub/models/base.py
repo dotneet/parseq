@@ -26,8 +26,8 @@ from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import OneCycleLR
 
-import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+import lightning.pytorch as pl
+from lightning.pytorch.utilities.types import STEP_OUTPUT
 from timm.optim import create_optimizer_v2
 
 from strhub.data.utils import BaseTokenizer, CharsetAdapter, CTCTokenizer, Tokenizer

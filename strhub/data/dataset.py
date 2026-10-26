@@ -120,7 +120,7 @@ class LmdbDataset(Dataset):
                     img_key = f'image-{index:09d}'.encode()
                     buf = io.BytesIO(txn.get(img_key))
                     w, h = Image.open(buf).size
-                    if w < self.min_image_dim or h < self.min_image_dim:
+                    if w < min_image_dim or h < min_image_dim:
                         continue
                 self.labels.append(label)
                 self.filtered_index_list.append(index)

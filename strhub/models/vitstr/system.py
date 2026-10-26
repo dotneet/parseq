@@ -18,7 +18,7 @@ from typing import Any, Optional, Sequence
 import torch
 from torch import Tensor
 
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+from lightning.pytorch.utilities.types import STEP_OUTPUT
 
 from strhub.models.base import CrossEntropySystem
 from strhub.models.utils import init_weights

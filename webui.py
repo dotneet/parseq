@@ -65,7 +65,7 @@ css = """
     max-height: 200px;
 }
 """
-with gr.Blocks(css=css) as demo:
+with gr.Blocks() as demo:
     with gr.Column():
         im = gr.ImageEditor(
             type="pil",
@@ -87,5 +87,5 @@ with gr.Blocks(css=css) as demo:
 def greet(name):
     return "Hello " + name + "!"
 
-demo.launch(server_name=server_name) 
+demo.launch(server_name=server_name, css=css)
 
