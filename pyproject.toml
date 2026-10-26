@@ -50,6 +50,12 @@ tune = [
 webui = [
   "gradio>=5",
 ]
+onnx = [  # tools/export_onnx.py
+  "onnx",
+  "onnxscript",  # required by the dynamo-based torch.onnx exporter
+  "onnxruntime",
+  "Pillow",
+]
 
 [dependency-groups]
 dev = [

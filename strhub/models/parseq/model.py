@@ -139,7 +139,7 @@ class PARSeq(nn.Module):
                 logits.append(p_i)
                 if j < num_steps:
                     # greedy decode. add the next token index to the target input
-                    tgt_in[:, j] = p_i.squeeze().argmax(-1)
+                    tgt_in[:, j] = p_i.squeeze(1).argmax(-1)
                     # Efficient batch decoding: If all output words have at least one EOS token, end decoding.
                     if testing and (tgt_in == tokenizer.eos_id).any(dim=-1).all():
                         break

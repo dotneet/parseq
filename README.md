@@ -288,6 +288,19 @@ demo_images/uber-27491.jpg: 3rdAve
 ```
 </p></details>
 
+## ONNX Export
+`tools/export_onnx.py` exports a PARSeq model (pretrained or trained checkpoint) to ONNX, with a dynamic batch size by default.
+Requires the `onnx` extra (`uv sync --extra onnx`).
+```bash
+# Export and compare the outputs against PyTorch using onnxruntime (on demo_images/ by default)
+uv run tools/export_onnx.py pretrained=parseq-tiny -o parseq-tiny.onnx --verify
+# Fixed batch size, NAR decoding
+uv run tools/export_onnx.py outputs/<model>/<timestamp>/checkpoints/last.ckpt decode_ar:bool=false --batch-size 1
+```
+The input is `image` (`N x 3 x H x W`, normalized like `SceneTextDataModule.get_transform()`), the output is `logits`.
+Decode them with `model.tokenizer.decode(logits.softmax(-1))`.
+Since a static graph cannot stop early, the exported model always decodes `max_label_length + 1` steps.
+
 ## Tuning
 
 We use [Ray Tune](https://www.ray.io/ray-tune) for automated parameter tuning of the learning rate. See `./tune.py --help`. Extend `tune.py` to support tuning of other hyperparameters.
